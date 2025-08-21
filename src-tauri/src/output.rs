@@ -4,6 +4,14 @@ use anyhow::Result;
 use console::style;
 use std::io::Write;
 
+impl OutputFormat {
+    pub fn format(&self, result: &GroupingResult, show_ungrouped: bool) -> Result<String> {
+        let mut output = Vec::new();
+        format_output(result, self, &mut output, show_ungrouped)?;
+        Ok(String::from_utf8(output)?)
+    }
+}
+
 pub fn format_output<W: Write>(
     result: &GroupingResult,
     format: &OutputFormat,

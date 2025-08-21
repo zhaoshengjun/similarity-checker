@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "similarity_checker_gui",
+  "productName": "similarity_checker",
   "version": "0.1.0",
-  "identifier": "com.samzhao.similarity_checker_gui",
+  "identifier": "com.samzhao.similarity-checker",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "similarity_checker_gui",
+        "title": "similarity_checker",
         "width": 800,
         "height": 600
       }

@@ -1,7 +1,12 @@
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
-use std::process::Command;
-use anyhow::{Result, anyhow};
+use anyhow::Result;
+
+// Import CLI modules
+mod cli;
+mod similarity;
+mod grouper;
+mod input;
+mod output;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SimilarGroup {
@@ -23,47 +28,45 @@ fn greet(name: &str) -> String {
 
 #[tauri::command]
 async fn analyze_folder(folder_path: String) -> Result<SimilarityResult, String> {
-    // Get the path to the similarity-checker executable
-    let exe_path = get_similarity_checker_path()
-        .map_err(|e| format!("Failed to find similarity-checker executable: {}", e))?;
-    
-    // Run the similarity-checker CLI
-    let output = Command::new(exe_path)
-        .arg("--discover")
-        .arg(&folder_path)
-        .arg("--format")
-        .arg("json")
-        .arg("--show-ungrouped")
-        .output()
-        .map_err(|e| format!("Failed to execute similarity-checker: {}", e))?;
-    
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("Similarity checker failed: {}", stderr));
-    }
-    
-    let stdout = String::from_utf8(output.stdout)
-        .map_err(|e| format!("Invalid UTF-8 output: {}", e))?;
-    
-    // Parse the JSON output and convert relative paths to absolute ones
-    let mut result = parse_similarity_output(&stdout)
-        .map_err(|e| format!("Failed to parse similarity checker output: {}", e))?;
-    
-    // Convert relative paths to absolute paths
+    use crate::input::FileDiscovery;
+    use crate::grouper::FileGrouper;
+    use crate::cli::OutputFormat;
+
+    // Use embedded CLI logic instead of external binary
     let folder_path_buf = std::path::Path::new(&folder_path);
-    
+
+    // Discover files
+    let file_discovery = FileDiscovery::new();
+    let files = file_discovery.discover_files(folder_path_buf)
+        .map_err(|e| format!("Failed to discover files: {}", e))?;
+
+    // Group files by similarity
+    let mut grouper = FileGrouper::new(0.7); // Use default threshold
+    let grouped_files = grouper.group_files(files)
+        .map_err(|e| format!("Failed to group files: {}", e))?;
+
+    // Convert to output format
+    let output_format = OutputFormat::Json;
+    let output_str = output_format.format(&grouped_files, true) // show_ungrouped = true
+        .map_err(|e| format!("Failed to format output: {}", e))?;
+
+    // Parse the JSON output and convert relative paths to absolute ones
+    let mut result = parse_similarity_output(&output_str)
+        .map_err(|e| format!("Failed to parse similarity output: {}", e))?;
+
+    // Convert relative paths to absolute paths
     for group in &mut result.groups {
         for file in &mut group.files {
             let absolute_path = folder_path_buf.join(&*file);
             *file = absolute_path.to_string_lossy().to_string();
         }
     }
-    
+
     for file in &mut result.ungrouped_files {
         let absolute_path = folder_path_buf.join(&*file);
         *file = absolute_path.to_string_lossy().to_string();
     }
-    
+
     Ok(result)
 }
 
@@ -71,14 +74,14 @@ async fn analyze_folder(folder_path: String) -> Result<SimilarityResult, String>
 async fn delete_files(file_paths: Vec<String>) -> Result<String, String> {
     let mut deleted_count = 0;
     let mut errors = Vec::new();
-    
+
     for path in file_paths {
         match trash::delete(&path) {
             Ok(_) => deleted_count += 1,
             Err(e) => errors.push(format!("Failed to delete '{}': {}", path, e)),
         }
     }
-    
+
     if !errors.is_empty() {
         Err(format!("Some files could not be deleted: {}", errors.join(", ")))
     } else {
@@ -86,43 +89,14 @@ async fn delete_files(file_paths: Vec<String>) -> Result<String, String> {
     }
 }
 
-fn get_similarity_checker_path() -> Result<PathBuf> {
-    // Try to find the executable in common locations
-    let possible_paths = vec![
-        // In the parent directory (development setup) - absolute path
-        "/Users/samzhao/Documents/Code/Playground/similarity-checker/target/release/similarity-checker",
-        "/Users/samzhao/Documents/Code/Playground/similarity-checker/target/debug/similarity-checker",
-        // Relative paths from GUI directory
-        "../../target/release/similarity-checker",
-        "../../target/debug/similarity-checker",
-        "../target/release/similarity-checker", 
-        "../target/debug/similarity-checker",
-        // System-wide installation
-        "similarity-checker",
-        // In current directory
-        "./similarity-checker",
-    ];
-    
-    for path in possible_paths {
-        let path_buf = PathBuf::from(path);
-        if path_buf.exists() {
-            return Ok(path_buf);
-        }
-    }
-    
-    // Try using 'which' command as fallback
-    match which::which("similarity-checker") {
-        Ok(path) => Ok(path),
-        Err(_) => Err(anyhow!("similarity-checker executable not found. Please ensure it's installed and in PATH.")),
-    }
-}
+// No longer needed since we're using embedded CLI logic
 
 fn parse_similarity_output(json_str: &str) -> Result<SimilarityResult> {
     let parsed: serde_json::Value = serde_json::from_str(json_str)?;
-    
+
     let mut groups = Vec::new();
     let mut ungrouped_files = Vec::new();
-    
+
     if let Some(groups_array) = parsed.get("groups").and_then(|v| v.as_array()) {
         for group in groups_array {
             if let Some(files_array) = group.get("files").and_then(|v| v.as_array()) {
@@ -130,11 +104,11 @@ fn parse_similarity_output(json_str: &str) -> Result<SimilarityResult> {
                     .iter()
                     .filter_map(|f| f.as_str().map(|s| s.to_string()))
                     .collect();
-                
+
                 let similarity_score = group.get("similarity")
                     .and_then(|v| v.as_f64())
                     .unwrap_or(0.0);
-                
+
                 if !files.is_empty() {
                     groups.push(SimilarGroup {
                         files,
@@ -144,7 +118,7 @@ fn parse_similarity_output(json_str: &str) -> Result<SimilarityResult> {
             }
         }
     }
-    
+
     // Get actual ungrouped file names
     if let Some(ungrouped_array) = parsed.get("ungrouped").and_then(|v| v.as_array()) {
         ungrouped_files = ungrouped_array
@@ -152,7 +126,7 @@ fn parse_similarity_output(json_str: &str) -> Result<SimilarityResult> {
             .filter_map(|f| f.as_str().map(|s| s.to_string()))
             .collect();
     }
-    
+
     Ok(SimilarityResult {
         groups,
         ungrouped_files,

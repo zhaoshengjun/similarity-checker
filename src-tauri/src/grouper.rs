@@ -2,6 +2,30 @@ use crate::cli::Algorithm;
 use crate::similarity::calculate_similarity;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
+use anyhow::Result;
+
+pub struct FileGrouper {
+    threshold: f64,
+    algorithm: Algorithm,
+    case_sensitive: bool,
+    min_group_size: usize,
+}
+
+impl FileGrouper {
+    pub fn new(threshold: f64) -> Self {
+        Self {
+            threshold,
+            algorithm: Algorithm::Auto,
+            case_sensitive: false,
+            min_group_size: 2,
+        }
+    }
+    
+    pub fn group_files(&mut self, files: Vec<String>) -> Result<GroupingResult> {
+        let threshold_u8 = (self.threshold * 100.0) as u8;
+        Ok(group_files(files, threshold_u8, &self.algorithm, self.case_sensitive, self.min_group_size))
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Group {

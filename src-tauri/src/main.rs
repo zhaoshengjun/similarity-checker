@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    similarity_checker_gui_lib::run()
+    similarity_checker_lib::run()
 }
