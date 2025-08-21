@@ -8,15 +8,16 @@ pub fn format_output<W: Write>(
     result: &GroupingResult,
     format: &OutputFormat,
     writer: &mut W,
+    show_ungrouped: bool,
 ) -> Result<()> {
     match format {
-        OutputFormat::Text => format_text(result, writer),
-        OutputFormat::Json => format_json(result, writer),
-        OutputFormat::Csv => format_csv(result, writer),
+        OutputFormat::Text => format_text(result, writer, show_ungrouped),
+        OutputFormat::Json => format_json(result, writer, show_ungrouped),
+        OutputFormat::Csv => format_csv(result, writer, show_ungrouped),
     }
 }
 
-fn format_text<W: Write>(result: &GroupingResult, writer: &mut W) -> Result<()> {
+fn format_text<W: Write>(result: &GroupingResult, writer: &mut W, show_ungrouped: bool) -> Result<()> {
     if result.groups.is_empty() {
         writeln!(writer, "{}", style("No similar file groups found.").yellow())?;
     } else {
@@ -40,7 +41,7 @@ fn format_text<W: Write>(result: &GroupingResult, writer: &mut W) -> Result<()> 
         }
     }
     
-    if !result.ungrouped.is_empty() {
+    if show_ungrouped && !result.ungrouped.is_empty() {
         writeln!(writer, "{}", style("Ungrouped files:").cyan().bold())?;
         for file in &result.ungrouped {
             writeln!(writer, "  - {}", file)?;
@@ -58,13 +59,26 @@ fn format_text<W: Write>(result: &GroupingResult, writer: &mut W) -> Result<()> 
     Ok(())
 }
 
-fn format_json<W: Write>(result: &GroupingResult, writer: &mut W) -> Result<()> {
-    let json = serde_json::to_string_pretty(result)?;
-    writeln!(writer, "{}", json)?;
+fn format_json<W: Write>(result: &GroupingResult, writer: &mut W, show_ungrouped: bool) -> Result<()> {
+    use serde_json::{json, Value};
+    
+    let mut output = json!({
+        "groups": result.groups,
+        "summary": result.summary
+    });
+    
+    if show_ungrouped {
+        output["ungrouped"] = Value::Array(
+            result.ungrouped.iter().map(|s| Value::String(s.clone())).collect()
+        );
+    }
+    
+    let json_str = serde_json::to_string_pretty(&output)?;
+    writeln!(writer, "{}", json_str)?;
     Ok(())
 }
 
-fn format_csv<W: Write>(result: &GroupingResult, writer: &mut W) -> Result<()> {
+fn format_csv<W: Write>(result: &GroupingResult, writer: &mut W, show_ungrouped: bool) -> Result<()> {
     let mut csv_writer = csv::Writer::from_writer(writer);
     
     // Write header
@@ -82,14 +96,16 @@ fn format_csv<W: Write>(result: &GroupingResult, writer: &mut W) -> Result<()> {
         }
     }
     
-    // Write ungrouped files
-    for file in &result.ungrouped {
-        csv_writer.write_record(&[
-            "".to_string(),
-            file.clone(),
-            "".to_string(),
-            "ungrouped".to_string(),
-        ])?;
+    // Write ungrouped files only if show_ungrouped is true
+    if show_ungrouped {
+        for file in &result.ungrouped {
+            csv_writer.write_record(&[
+                "".to_string(),
+                file.clone(),
+                "".to_string(),
+                "ungrouped".to_string(),
+            ])?;
+        }
     }
     
     csv_writer.flush()?;
@@ -124,21 +140,23 @@ mod tests {
     fn test_format_json() {
         let result = create_test_result();
         let mut output = Vec::new();
-        format_json(&result, &mut output).unwrap();
+        format_json(&result, &mut output, true).unwrap();
         
         let json_str = String::from_utf8(output).unwrap();
         assert!(json_str.contains("\"id\": 1"));
         assert!(json_str.contains("\"file1.txt\""));
+        assert!(json_str.contains("\"ungrouped\""));
     }
 
     #[test]
     fn test_format_csv() {
         let result = create_test_result();
         let mut output = Vec::new();
-        format_csv(&result, &mut output).unwrap();
+        format_csv(&result, &mut output, true).unwrap();
         
         let csv_str = String::from_utf8(output).unwrap();
         assert!(csv_str.contains("group_id,file_name,similarity,status"));
         assert!(csv_str.contains("1,file1.txt,0.85,grouped"));
+        assert!(csv_str.contains(",different.doc,,ungrouped"));
     }
 }

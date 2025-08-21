@@ -41,6 +41,10 @@ pub struct Args {
     /// Enable case-sensitive matching
     #[arg(long)]
     pub case_sensitive: bool,
+
+    /// Show ungrouped files in output
+    #[arg(long, default_value = "false")]
+    pub show_ungrouped: bool,
 }
 
 #[derive(Clone, ValueEnum)]

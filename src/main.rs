@@ -62,13 +62,13 @@ fn main() -> Result<()> {
         Some(output_path) => {
             let file = File::create(&output_path)?;
             let mut writer = BufWriter::new(file);
-            format_output(&result, &args.format, &mut writer)?;
+            format_output(&result, &args.format, &mut writer, args.show_ungrouped)?;
             eprintln!("Results written to: {}", output_path.display());
         }
         None => {
             let stdout = io::stdout();
             let mut writer = BufWriter::new(stdout.lock());
-            format_output(&result, &args.format, &mut writer)?;
+            format_output(&result, &args.format, &mut writer, args.show_ungrouped)?;
         }
     }
     
