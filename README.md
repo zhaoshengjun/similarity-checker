@@ -50,6 +50,7 @@ similarity-checker --format json --output results.json *.jpg
 - `--input-file, -i`: Read file names from file
 - `--discover, -d`: Discover files in directory
 - `--min-group-size`: Minimum files per group (default: 2)
+- `--show-ungrouped`: Show ungrouped files in output (default: true)
 - `--case-sensitive`: Enable case-sensitive matching
 - `--help, -h`: Show help
 - `--version, -v`: Show version
@@ -66,6 +67,9 @@ similarity-checker --algorithm token --format json *.jpg *.png
 # Analyze all files in a project directory
 similarity-checker --discover ./src --min-group-size 3
 
+# Hide ungrouped files from output
+similarity-checker --show-ungrouped false *.txt
+
 # Read filenames from stdin
 find . -name "*.rs" | similarity-checker --format csv
 ```
@@ -73,22 +77,26 @@ find . -name "*.rs" | similarity-checker --format csv
 ## Algorithms
 
 ### Levenshtein Distance
+
 - Character-level edit distance
 - Good for typos and minor variations
 - Example: "file1.txt" vs "file2.txt"
 
 ### Jaro-Winkler
+
 - Optimized for string similarity
 - Gives more weight to common prefixes
 - Good for names with common beginnings
 
 ### Token-Based
-- Splits on delimiters (_, -, space, numbers)
+
+- Splits on delimiters (\_, -, space, numbers)
 - Compares token sets using Jaccard similarity
 - Good for structured filenames
 - Example: "report_2024_final.pdf" vs "report_2024_draft.pdf"
 
 ### Auto Mode (Recommended)
+
 - Intelligently combines multiple algorithms
 - Adapts based on filename patterns
 - Best overall accuracy
@@ -96,10 +104,13 @@ find . -name "*.rs" | similarity-checker --format csv
 ## Output Formats
 
 ### Text (Default)
+
 Human-readable grouped output with colors and summary statistics.
 
 ### JSON
+
 Machine-readable format for programmatic use:
+
 ```json
 {
   "groups": [
@@ -120,6 +131,7 @@ Machine-readable format for programmatic use:
 ```
 
 ### CSV
+
 Spreadsheet-friendly format with columns: group_id, file_name, similarity, status.
 
 ## Performance
