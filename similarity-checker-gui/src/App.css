@@ -1,10 +1,3 @@
-.logo.vite:hover {
-  filter: drop-shadow(0 0 2em #747bff);
-}
-
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafb);
-}
 :root {
   font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
   font-size: 16px;
@@ -22,77 +15,193 @@
 }
 
 .container {
-  margin: 0;
-  padding-top: 10vh;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  text-align: center;
-}
-
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: 0.75s;
-}
-
-.logo.tauri:hover {
-  filter: drop-shadow(0 0 2em #24c8db);
-}
-
-.row {
-  display: flex;
-  justify-content: center;
-}
-
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-
-a:hover {
-  color: #535bf2;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+  text-align: left;
 }
 
 h1 {
   text-align: center;
+  margin-bottom: 30px;
 }
 
-input,
+.controls {
+  margin-bottom: 30px;
+  padding: 20px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  background-color: #f9f9f9;
+}
+
+.controls button {
+  margin: 5px;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  background-color: #007acc;
+  color: white;
+}
+
+.controls button:hover:not(:disabled) {
+  background-color: #005999;
+}
+
+.controls button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+.delete-button {
+  background-color: #ff4444 !important;
+  color: white !important;
+}
+
+.folder-info {
+  margin: 10px 0;
+  padding: 10px;
+  background-color: #e9f5ff;
+  border-radius: 4px;
+  font-family: monospace;
+  word-break: break-all;
+}
+
+.status {
+  margin: 20px 0;
+  padding: 15px;
+  border-radius: 4px;
+  background-color: #f0f8ff;
+  border-left: 4px solid #007acc;
+}
+
+.results {
+  margin-top: 30px;
+}
+
+.group {
+  margin-bottom: 30px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.group-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #ddd;
+}
+
+.group-header h3 {
+  margin: 0;
+  color: #333;
+}
+
+.select-all-button {
+  padding: 8px 16px;
+  background-color: #007acc;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.file-list {
+  padding: 0;
+}
+
+.file-item {
+  padding: 12px 20px;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  align-items: center;
+}
+
+.file-item:last-child {
+  border-bottom: none;
+}
+
+.file-item label {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  width: 100%;
+  gap: 12px;
+}
+
+.file-item input[type="checkbox"] {
+  margin: 0;
+  cursor: pointer;
+}
+
+.file-name {
+  font-weight: bold;
+  color: #333;
+  min-width: 200px;
+}
+
+.file-path {
+  color: #666;
+  font-family: monospace;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ungrouped {
+  margin-top: 30px;
+  padding: 20px;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+}
+
+.ungrouped-file {
+  color: #666;
+  font-style: italic;
+}
+
+.ungrouped details {
+  margin-top: 15px;
+}
+
+.ungrouped summary {
+  cursor: pointer;
+  font-weight: bold;
+  color: #007acc;
+  margin-bottom: 10px;
+}
+
+.ungrouped summary:hover {
+  color: #005999;
+}
+
 button {
+  background-color: #007acc;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
   border-radius: 8px;
   border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  color: #0f0f0f;
-  background-color: #ffffff;
   transition: border-color 0.25s;
   box-shadow: 0 2px 2px rgba(0, 0, 0, 0.2);
 }
 
-button {
-  cursor: pointer;
-}
-
-button:hover {
+button:hover:not(:disabled) {
+  background-color: #005999;
   border-color: #396cd8;
 }
-button:active {
-  border-color: #396cd8;
-  background-color: #e8e8e8;
-}
 
-input,
-button {
-  outline: none;
-}
-
-#greet-input {
-  margin-right: 5px;
+button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -101,16 +210,56 @@ button {
     background-color: #2f2f2f;
   }
 
-  a:hover {
-    color: #24c8db;
+  .controls {
+    background-color: #404040;
+    border-color: #555;
   }
 
-  input,
+  .folder-info {
+    background-color: #1a3a5c;
+    color: #e9f5ff;
+  }
+
+  .status {
+    background-color: #1a3a5c;
+    color: #e9f5ff;
+  }
+
+  .group {
+    border-color: #555;
+  }
+
+  .group-header {
+    background-color: #404040;
+    border-bottom-color: #555;
+  }
+
+  .group-header h3 {
+    color: #f6f6f6;
+  }
+
+  .file-item {
+    border-bottom-color: #555;
+  }
+
+  .file-name {
+    color: #f6f6f6;
+  }
+
+  .file-path {
+    color: #ccc;
+  }
+
+  .ungrouped {
+    background-color: #404040;
+  }
+
   button {
     color: #ffffff;
-    background-color: #0f0f0f98;
+    background-color: #007acc;
   }
-  button:active {
-    background-color: #0f0f0f69;
+
+  button:hover:not(:disabled) {
+    background-color: #005999;
   }
 }
