@@ -1,6 +1,5 @@
 use anyhow::{Context, Result};
 use glob::glob;
-use std::fs;
 use std::path::{Path, PathBuf};
 
 pub struct FileDiscovery {
@@ -50,9 +49,10 @@ impl FileDiscovery {
 }
 
 // Legacy functions kept for backwards compatibility
+#[allow(dead_code)]
 pub fn collect_files(
     cli_files: Vec<String>,
-    input_file: Option<PathBuf>,
+    _input_file: Option<PathBuf>,
     discover_dir: Option<PathBuf>,
 ) -> Result<Vec<String>> {
     let mut all_files = Vec::new();
@@ -78,6 +78,44 @@ pub fn collect_files(
     }
     
     Ok(all_files)
+}
+
+#[allow(dead_code)]
+pub fn validate_threshold(threshold: u8) -> Result<()> {
+    if threshold > 100 {
+        anyhow::bail!("Threshold must be between 0 and 100");
+    }
+    Ok(())
+}
+
+#[allow(dead_code)]
+pub fn validate_min_group_size(size: usize) -> Result<()> {
+    if size < 2 {
+        anyhow::bail!("Minimum group size must be at least 2");
+    }
+    Ok(())
+}
+
+#[allow(dead_code)]
+pub fn read_files_from_file(file_path: &Path) -> Result<Vec<String>> {
+    use std::fs;
+    let content = fs::read_to_string(file_path)
+        .with_context(|| format!("Failed to read file: {}", file_path.display()))?;
+    
+    let files: Vec<String> = content
+        .lines()
+        .map(|line| line.trim())
+        .filter(|line| !line.is_empty() && !line.starts_with('#'))
+        .map(|line| line.to_string())
+        .collect();
+    
+    Ok(files)
+}
+
+#[allow(dead_code)]
+pub fn discover_files(dir: &Path) -> Result<Vec<String>> {
+    let discovery = FileDiscovery::new();
+    discovery.discover_files(dir)
 }
 
 #[cfg(test)]

@@ -1,4 +1,5 @@
 #[derive(Clone, Debug)]
+#[allow(dead_code)]
 pub enum Algorithm {
     Levenshtein,
     Jaro,
@@ -8,6 +9,7 @@ pub enum Algorithm {
 }
 
 #[derive(Clone, Debug)]
+#[allow(dead_code)]
 pub enum OutputFormat {
     Text,
     Json,
