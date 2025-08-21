@@ -12,6 +12,7 @@ pub fn calculate_similarity(s1: &str, s2: &str, algorithm: &Algorithm, case_sens
         Algorithm::Levenshtein => levenshtein_similarity(&s1, &s2),
         Algorithm::Jaro => jaro_similarity(&s1, &s2),
         Algorithm::Token => token_similarity(&s1, &s2),
+        Algorithm::Substring => substring_similarity(&s1, &s2),
         Algorithm::Auto => auto_similarity(&s1, &s2),
     }
 }
@@ -76,6 +77,47 @@ fn tokenize(s: &str) -> Vec<String> {
     tokens
 }
 
+fn normalize_for_comparison(s: &str) -> String {
+    // Remove file extension first
+    let without_ext = if let Some(dot_pos) = s.rfind('.') {
+        &s[..dot_pos]
+    } else {
+        s
+    };
+    
+    // Then filter out non-alphanumeric characters and convert to lowercase
+    without_ext.chars()
+        .filter(|c| c.is_alphanumeric())
+        .collect::<String>()
+        .to_lowercase()
+}
+
+fn substring_similarity(s1: &str, s2: &str) -> f64 {
+    let norm1 = normalize_for_comparison(s1);
+    let norm2 = normalize_for_comparison(s2);
+    
+    if norm1.is_empty() && norm2.is_empty() {
+        return 1.0;
+    }
+    if norm1.is_empty() || norm2.is_empty() {
+        return 0.0;
+    }
+    
+    // Check if one is a substring of the other
+    let (shorter, longer) = if norm1.len() <= norm2.len() {
+        (&norm1, &norm2)
+    } else {
+        (&norm2, &norm1)
+    };
+    
+    if longer.contains(shorter) {
+        // Return similarity based on length ratio
+        shorter.len() as f64 / longer.len() as f64
+    } else {
+        0.0
+    }
+}
+
 fn auto_similarity(s1: &str, s2: &str) -> f64 {
     // Use a combination of algorithms and take the maximum
     let levenshtein = levenshtein_similarity(s1, s2);
@@ -123,5 +165,39 @@ mod tests {
         assert_eq!(tokenize("file_name.txt"), vec!["file", "name", "txt"]);
         assert_eq!(tokenize("report-v1"), vec!["report", "v1"]);
         assert_eq!(tokenize("simple"), vec!["simple"]);
+    }
+
+    #[test]
+    fn test_normalize_for_comparison() {
+        assert_eq!(normalize_for_comparison("AI_Usage.epub"), "aiusage");
+        assert_eq!(normalize_for_comparison("AI usage.epub"), "aiusage");
+        assert_eq!(normalize_for_comparison("AI_Usage_in_MSFT-Unknown.epub"), "aiusageinmsftunknown");
+        assert_eq!(normalize_for_comparison("AI_Usage_in_MSFT.epub"), "aiusageinmsft");
+        assert_eq!(normalize_for_comparison("report.pdf"), "report");
+        assert_eq!(normalize_for_comparison("report_final.pdf"), "reportfinal");
+    }
+
+    #[test]
+    fn test_substring_similarity() {
+        // Perfect match
+        assert!((substring_similarity("test.txt", "test.txt") - 1.0).abs() < f64::EPSILON);
+        
+        // Substring match with punctuation differences
+        assert!((substring_similarity("AI_Usage.epub", "AI usage.epub") - 1.0).abs() < f64::EPSILON);
+        
+        // One is substring of another - your example case
+        let similarity = substring_similarity("AI_Usage_in_MSFT.epub", "AI_Usage_in_MSFT-Unknown.epub");
+        assert!(similarity > 0.6, "Expected similarity > 0.6, got {}", similarity);
+        
+        // Simple substring case
+        let similarity = substring_similarity("report.pdf", "report_final.pdf");
+        assert!(similarity > 0.5, "Expected similarity > 0.5, got {}", similarity);
+        
+        // No substring relationship
+        assert!((substring_similarity("file1.txt", "document2.pdf") - 0.0).abs() < f64::EPSILON);
+        
+        // Empty strings
+        assert!((substring_similarity("", "") - 1.0).abs() < f64::EPSILON);
+        assert!((substring_similarity("test", "") - 0.0).abs() < f64::EPSILON);
     }
 }

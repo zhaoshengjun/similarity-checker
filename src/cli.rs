@@ -48,6 +48,7 @@ pub enum Algorithm {
     Levenshtein,
     Jaro,
     Token,
+    Substring,
     Auto,
 }
 
