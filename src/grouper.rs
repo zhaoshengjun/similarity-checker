@@ -140,6 +140,9 @@ pub fn group_files(
         threshold_used: threshold_f64,
     };
     
+    // Sort groups by similarity score in descending order
+    groups.sort_by(|a, b| b.similarity.partial_cmp(&a.similarity).unwrap_or(std::cmp::Ordering::Equal));
+    
     GroupingResult {
         groups,
         ungrouped,
