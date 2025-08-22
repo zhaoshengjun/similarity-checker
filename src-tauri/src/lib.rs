@@ -3,10 +3,7 @@ use anyhow::Result;
 
 // Import CLI modules
 mod cli;
-mod similarity;
-mod grouper;
 mod input;
-mod output;
 mod file_info;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -51,7 +48,7 @@ async fn analyze_folder(folder_path: String) -> Result<FileInfoResult, String> {
     use std::path::Path;
 
     // Use embedded CLI logic instead of external binary
-    let folder_path_buf = std::path::Path::new(&folder_path);
+    let folder_path_buf = Path::new(&folder_path);
 
     // Discover files
     let file_discovery = FileDiscovery::new();
