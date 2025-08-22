@@ -3492,15 +3492,18 @@ dependencies = [
  "console",
  "csv",
  "glob",
+ "hex",
  "indicatif",
  "serde",
  "serde_json",
+ "sha2",
  "strsim 0.10.0",
  "tauri",
  "tauri-build",
  "tauri-plugin-dialog",
  "tauri-plugin-fs",
  "tauri-plugin-opener",
+ "tempfile",
  "trash",
 ]
 

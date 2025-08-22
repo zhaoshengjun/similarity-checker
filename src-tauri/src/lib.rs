@@ -7,17 +7,11 @@ mod similarity;
 mod grouper;
 mod input;
 mod output;
+mod file_info;
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct SimilarGroup {
-    pub files: Vec<String>,
-    pub similarity_score: f64,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct SimilarityResult {
-    pub groups: Vec<SimilarGroup>,
-    pub ungrouped_files: Vec<String>,
+pub struct FileInfoResult {
+    pub groups: Vec<file_info::SimilarityGroup>,
 }
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
@@ -27,47 +21,60 @@ fn greet(name: &str) -> String {
 }
 
 #[tauri::command]
-async fn analyze_folder(folder_path: String) -> Result<SimilarityResult, String> {
+async fn analyze_files_advanced(file_paths: Vec<String>) -> Result<FileInfoResult, String> {
+    use crate::file_info::{FileInfo, group_similar_files};
+    use std::path::Path;
+    
+    // Convert file paths to FileInfo objects
+    let mut files = Vec::new();
+    for path_str in file_paths {
+        let path = Path::new(&path_str);
+        if path.exists() && path.is_file() {
+            match FileInfo::from_path(path) {
+                Ok(file_info) => files.push(file_info),
+                Err(e) => eprintln!("Warning: Failed to process file {}: {}", path_str, e),
+            }
+        }
+    }
+    
+    // Group similar files
+    let groups = group_similar_files(files).await
+        .map_err(|e| format!("Failed to group files: {}", e))?;
+    
+    Ok(FileInfoResult { groups })
+}
+
+#[tauri::command]
+async fn analyze_folder(folder_path: String) -> Result<FileInfoResult, String> {
     use crate::input::FileDiscovery;
-    use crate::grouper::FileGrouper;
-    use crate::cli::OutputFormat;
+    use crate::file_info::{FileInfo, group_similar_files};
+    use std::path::Path;
 
     // Use embedded CLI logic instead of external binary
     let folder_path_buf = std::path::Path::new(&folder_path);
 
     // Discover files
     let file_discovery = FileDiscovery::new();
-    let files = file_discovery.discover_files(folder_path_buf)
+    let file_paths = file_discovery.discover_files(folder_path_buf)
         .map_err(|e| format!("Failed to discover files: {}", e))?;
 
-    // Group files by similarity
-    let mut grouper = FileGrouper::new(0.7); // Use default threshold
-    let grouped_files = grouper.group_files(files)
-        .map_err(|e| format!("Failed to group files: {}", e))?;
-
-    // Convert to output format
-    let output_format = OutputFormat::Json;
-    let output_str = output_format.format(&grouped_files, true) // show_ungrouped = true
-        .map_err(|e| format!("Failed to format output: {}", e))?;
-
-    // Parse the JSON output and convert relative paths to absolute ones
-    let mut result = parse_similarity_output(&output_str)
-        .map_err(|e| format!("Failed to parse similarity output: {}", e))?;
-
-    // Convert relative paths to absolute paths
-    for group in &mut result.groups {
-        for file in &mut group.files {
-            let absolute_path = folder_path_buf.join(&*file);
-            *file = absolute_path.to_string_lossy().to_string();
+    // Convert file paths to FileInfo objects
+    let mut files = Vec::new();
+    for path_str in file_paths {
+        let path = folder_path_buf.join(&path_str);
+        if path.exists() && path.is_file() {
+            match FileInfo::from_path(&path) {
+                Ok(file_info) => files.push(file_info),
+                Err(e) => eprintln!("Warning: Failed to process file {}: {}", path.display(), e),
+            }
         }
     }
 
-    for file in &mut result.ungrouped_files {
-        let absolute_path = folder_path_buf.join(&*file);
-        *file = absolute_path.to_string_lossy().to_string();
-    }
+    // Group similar files
+    let groups = group_similar_files(files).await
+        .map_err(|e| format!("Failed to group files: {}", e))?;
 
-    Ok(result)
+    Ok(FileInfoResult { groups })
 }
 
 #[tauri::command]
@@ -89,57 +96,13 @@ async fn delete_files(file_paths: Vec<String>) -> Result<String, String> {
     }
 }
 
-// No longer needed since we're using embedded CLI logic
-
-fn parse_similarity_output(json_str: &str) -> Result<SimilarityResult> {
-    let parsed: serde_json::Value = serde_json::from_str(json_str)?;
-
-    let mut groups = Vec::new();
-    let mut ungrouped_files = Vec::new();
-
-    if let Some(groups_array) = parsed.get("groups").and_then(|v| v.as_array()) {
-        for group in groups_array {
-            if let Some(files_array) = group.get("files").and_then(|v| v.as_array()) {
-                let files: Vec<String> = files_array
-                    .iter()
-                    .filter_map(|f| f.as_str().map(|s| s.to_string()))
-                    .collect();
-
-                let similarity_score = group.get("similarity")
-                    .and_then(|v| v.as_f64())
-                    .unwrap_or(0.0);
-
-                if !files.is_empty() {
-                    groups.push(SimilarGroup {
-                        files,
-                        similarity_score,
-                    });
-                }
-            }
-        }
-    }
-
-    // Get actual ungrouped file names
-    if let Some(ungrouped_array) = parsed.get("ungrouped").and_then(|v| v.as_array()) {
-        ungrouped_files = ungrouped_array
-            .iter()
-            .filter_map(|f| f.as_str().map(|s| s.to_string()))
-            .collect();
-    }
-
-    Ok(SimilarityResult {
-        groups,
-        ungrouped_files,
-    })
-}
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
-        .invoke_handler(tauri::generate_handler![greet, analyze_folder, delete_files])
+        .invoke_handler(tauri::generate_handler![greet, analyze_folder, analyze_files_advanced, delete_files])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
