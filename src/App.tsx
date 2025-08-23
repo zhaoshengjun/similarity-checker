@@ -149,10 +149,29 @@ function App() {
       const message: string = await invoke("delete_files", {
         filePaths: Array.from(selectedFiles),
       });
+      
+      // Update the current result by removing deleted files instead of re-analyzing
+      if (result) {
+        const deletedFilePaths = new Set(selectedFiles);
+        const updatedGroups = result.groups
+          .map(group => ({
+            ...group,
+            files: group.files.filter(file => !deletedFilePaths.has(file.path))
+          }))
+          .filter(group => group.files.length > 1); // Remove groups with only 1 file left
+        
+        const updatedUngroupedFiles = result.ungrouped_files.filter(
+          file => !deletedFilePaths.has(file.path)
+        );
+        
+        setResult({
+          groups: updatedGroups,
+          ungrouped_files: updatedUngroupedFiles
+        });
+      }
+      
       setStatus(message);
       setSelectedFiles(new Set());
-      // Re-analyze the folder to update the results
-      await analyzeFolder();
     } catch (error) {
       setStatus(`Error deleting files: ${error}`);
     } finally {
