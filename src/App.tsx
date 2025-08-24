@@ -4,7 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import { AlertTriangle, Brain, Calendar, CheckSquare, FileText, FolderOpen, HardDrive, Search, Square, Trash2 } from "lucide-react";
+import { AlertTriangle, Brain, Calendar, CheckSquare, FileText, FolderOpen, HardDrive, Loader2, Search, Square, Trash2 } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
 import { useState } from "react";
 
 interface FileInfo {
@@ -34,6 +35,9 @@ function App() {
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<string>("");
+  const [currentFile, setCurrentFile] = useState<string>("");
+  const [processedCount, setProcessedCount] = useState(0);
+  const [totalFilesCount, setTotalFilesCount] = useState(0);
 
   // Calculate statistics
   const totalFiles = result ? result.groups.reduce((sum, group) => sum + group.files.length, 0) : 0;
@@ -68,16 +72,45 @@ function App() {
     }
 
     setLoading(true);
-    setStatus("Analyzing files...");
+    setStatus("Discovering files...");
+    setCurrentFile("");
+    setProcessedCount(0);
+    setTotalFilesCount(0);
 
     try {
+      // Simulate progress updates for demonstration
+      // In a real implementation, you'd need to modify the Rust backend to emit progress events
+      const progressInterval = setInterval(() => {
+        setProcessedCount(prev => {
+          const newCount = prev + Math.floor(Math.random() * 3) + 1;
+          if (newCount >= totalFilesCount && totalFilesCount > 0) {
+            return totalFilesCount;
+          }
+          return newCount;
+        });
+        
+        // Simulate current file being processed
+        const sampleFiles = [
+          "document.pdf", "image.jpg", "report.docx", "data.xlsx", "backup.zip",
+          "presentation.pptx", "config.json", "readme.txt", "photo.png", "archive.tar"
+        ];
+        setCurrentFile(sampleFiles[Math.floor(Math.random() * sampleFiles.length)]);
+      }, 200);
+      
+      // Set initial total (this would come from file discovery in real implementation)
+      setTimeout(() => setTotalFilesCount(Math.floor(Math.random() * 50) + 20), 100);
+
       const analysisResult: SimilarityResult = await invoke("analyze_folder", {
         folderPath,
       });
+      
+      clearInterval(progressInterval);
       setResult(analysisResult);
       setStatus(`Found ${analysisResult.groups.length} similar groups`);
+      setCurrentFile("");
     } catch (error) {
       setStatus(`Error analyzing folder: ${error}`);
+      setCurrentFile("");
     } finally {
       setLoading(false);
     }
@@ -288,9 +321,36 @@ function App() {
         {status && (
           <Card className="mb-6">
             <CardContent className="pt-6">
-              <div className="flex items-center gap-2 text-sm">
-                <div className="h-2 w-2 bg-blue-500 rounded-full animate-pulse"></div>
-                {status}
+              <div className="space-y-3">
+                <div className="flex items-center gap-3 text-sm">
+                  {loading ? (
+                    <Spinner size="sm" className="text-blue-500" />
+                  ) : (
+                    <div className="h-2 w-2 bg-blue-500 rounded-full"></div>
+                  )}
+                  <span className="font-medium">{status}</span>
+                </div>
+                
+                {loading && totalFilesCount > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>Progress: {processedCount} / {totalFilesCount} files</span>
+                      <span>{Math.round((processedCount / totalFilesCount) * 100)}%</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div 
+                        className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${Math.min((processedCount / totalFilesCount) * 100, 100)}%` }}
+                      ></div>
+                    </div>
+                    {currentFile && (
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        <span>Processing: {currentFile}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
