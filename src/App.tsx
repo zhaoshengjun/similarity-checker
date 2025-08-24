@@ -1,7 +1,11 @@
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
+import { AlertTriangle, Brain, Calendar, CheckSquare, FileText, FolderOpen, HardDrive, Search, Square, Trash2 } from "lucide-react";
 import { useState } from "react";
-import "./App.css";
 
 interface FileInfo {
   name: string;
@@ -149,7 +153,7 @@ function App() {
       const message: string = await invoke("delete_files", {
         filePaths: Array.from(selectedFiles),
       });
-      
+
       // Update the current result by removing deleted files instead of re-analyzing
       if (result) {
         const deletedFilePaths = new Set(selectedFiles);
@@ -159,17 +163,17 @@ function App() {
             files: group.files.filter(file => !deletedFilePaths.has(file.path))
           }))
           .filter(group => group.files.length > 1); // Remove groups with only 1 file left
-        
+
         const updatedUngroupedFiles = result.ungrouped_files.filter(
           file => !deletedFilePaths.has(file.path)
         );
-        
+
         setResult({
           groups: updatedGroups,
           ungrouped_files: updatedUngroupedFiles
         });
       }
-      
+
       setStatus(message);
       setSelectedFiles(new Set());
     } catch (error) {
@@ -227,159 +231,209 @@ function App() {
   }
 
   return (
-    <main className="container">
-      <h1>Similarity Checker</h1>
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto px-4 py-8 max-w-6xl">
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold text-foreground mb-2">Similarity Checker</h1>
+          <p className="text-muted-foreground">Find and manage duplicate files in your directories</p>
+        </div>
 
-      <div className="controls">
-        <button onClick={selectFolder}>Select Folder</button>
-        {folderPath && (
-          <div className="folder-info">
-            <strong>Selected:</strong> {folderPath}
-          </div>
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FolderOpen className="h-5 w-5" />
+              File Selection
+            </CardTitle>
+            <CardDescription>
+              Choose a folder to analyze for duplicate files
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex gap-2">
+              <Button onClick={selectFolder} className="flex items-center gap-2">
+                <FolderOpen className="h-4 w-4" />
+                Select Folder
+              </Button>
+              <Button
+                onClick={analyzeFolder}
+                disabled={!folderPath || loading}
+                variant="secondary"
+                className="flex items-center gap-2"
+              >
+                <Search className="h-4 w-4" />
+                {loading ? "Analyzing..." : "Analyze Files"}
+              </Button>
+              {selectedFiles.size > 0 && (
+                <Button
+                  onClick={deleteSelectedFiles}
+                  disabled={loading}
+                  variant="destructive"
+                  className="flex items-center gap-2"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete Selected ({selectedFiles.size})
+                </Button>
+              )}
+            </div>
+
+            {folderPath && (
+              <div className="p-3 bg-muted rounded-md">
+                <p className="text-sm text-muted-foreground mb-1">Selected folder:</p>
+                <p className="font-mono text-sm break-all">{folderPath}</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {status && (
+          <Card className="mb-6">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-2 text-sm">
+                <div className="h-2 w-2 bg-blue-500 rounded-full animate-pulse"></div>
+                {status}
+              </div>
+            </CardContent>
+          </Card>
         )}
-
-        <button onClick={analyzeFolder} disabled={!folderPath || loading}>
-          {loading ? "Analyzing..." : "Analyze Files"}
-        </button>
-
-        {selectedFiles.size > 0 && (
-          <button
-            onClick={deleteSelectedFiles}
-            disabled={loading}
-            className="delete-button"
-          >
-            Delete Selected ({selectedFiles.size}) to Trash
-          </button>
-        )}
-      </div>
-
-      {status && <div className="status">{status}</div>}
 
       {result && (
-        <div className="results">
-
-          {/* Duplicate Analysis Header */}
-          <div className="analysis-header">
-            <div className="analysis-title">
-              <div className="title-icon">⚠️</div>
-              <h2>Duplicate Analysis Results</h2>
-            </div>
-            <div className="analysis-subtitle">
-              Found {duplicateGroups} group{duplicateGroups !== 1 ? 's' : ''} containing {totalFiles} duplicate file{totalFiles !== 1 ? 's' : ''}
-            </div>
-
-            {/* Statistics */}
-            <div className="stats-row">
-              <div className="stat-item">
-                <div className="stat-number">{duplicateGroups}</div>
-                <div className="stat-label">Duplicate Groups</div>
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2 mb-2">
+                <AlertTriangle className="h-6 w-6 text-orange-500" />
+                <CardTitle>Duplicate Analysis Results</CardTitle>
               </div>
-              <div className="stat-item">
-                <div className="stat-number">{totalFiles}</div>
-                <div className="stat-label">Total Files</div>
+              <CardDescription>
+                Found {duplicateGroups} group{duplicateGroups !== 1 ? 's' : ''} containing {totalFiles} duplicate file{totalFiles !== 1 ? 's' : ''}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="text-center p-4 bg-muted rounded-lg">
+                  <div className="text-2xl font-bold text-purple-600">{duplicateGroups}</div>
+                  <div className="text-sm text-muted-foreground">Duplicate Groups</div>
+                </div>
+                <div className="text-center p-4 bg-muted rounded-lg">
+                  <div className="text-2xl font-bold text-green-600">{totalFiles}</div>
+                  <div className="text-sm text-muted-foreground">Total Files</div>
+                </div>
+                <div className="text-center p-4 bg-muted rounded-lg">
+                  <div className="text-2xl font-bold text-red-600">{formatFileSize(wastedSpace)}</div>
+                  <div className="text-sm text-muted-foreground">Wasted Space</div>
+                </div>
               </div>
-              <div className="stat-item">
-                <div className="stat-number">{formatFileSize(wastedSpace)}</div>
-                <div className="stat-label">Wasted Space</div>
-              </div>
-            </div>
 
-            {/* Action Buttons */}
-            <div className="action-buttons">
-              <button
-                onClick={selectAllDuplicates}
-                className="action-btn primary"
-                disabled={duplicateGroups === 0}
-              >
-                ☑️ Select All Duplicates
-              </button>
-              <button
-                onClick={clearSelection}
-                className="action-btn secondary"
-                disabled={selectedFiles.size === 0}
-              >
-                ◻️ Clear Selection
-              </button>
-              <button
-                onClick={smartSelectAll}
-                className="action-btn smart"
-                disabled={duplicateGroups === 0}
-              >
-                🧠 Smart Select All
-              </button>
-            </div>
-          </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  onClick={selectAllDuplicates}
+                  disabled={duplicateGroups === 0}
+                  className="flex items-center gap-2"
+                >
+                  <CheckSquare className="h-4 w-4" />
+                  Select All Duplicates
+                </Button>
+                <Button
+                  onClick={clearSelection}
+                  variant="outline"
+                  disabled={selectedFiles.size === 0}
+                  className="flex items-center gap-2"
+                >
+                  <Square className="h-4 w-4" />
+                  Clear Selection
+                </Button>
+                <Button
+                  onClick={smartSelectAll}
+                  variant="secondary"
+                  disabled={duplicateGroups === 0}
+                  className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white"
+                >
+                  <Brain className="h-4 w-4" />
+                  Smart Select All
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* File Groups */}
           {result.groups.length === 0 ? (
-            <p>No similar file groups found.</p>
+            <Card>
+              <CardContent className="pt-6">
+                <p className="text-center text-muted-foreground">No similar file groups found.</p>
+              </CardContent>
+            </Card>
           ) : (
             result.groups.map((group, groupIndex) => {
               const recommendedFile = getRecommendationForGroup(group);
               const similarityDisplay = getSimilarityTypeDisplay(group.similarity_type);
 
               return (
-                <div key={group.id} className="group">
-                  <div className="group-header">
-                    <div className="group-info">
-                      <div className="similarity-badge">
-                        <span className="similarity-type">{similarityDisplay}</span>
-                        <span className="similarity-percentage">
+                <Card key={group.id} className="overflow-hidden">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Badge variant="default" className="bg-blue-500">
+                          {similarityDisplay}
+                        </Badge>
+                        <Badge variant="outline">
                           {(group.similarity_score * 100).toFixed(0)}% Match
-                        </span>
+                        </Badge>
                       </div>
-                      <div className="group-meta">
-                        🧠 Smart
-                        <span className="file-count">{group.files.length} files • {group.similarity_type === "identical" ? "Same file size" : "Size + name similarity"}</span>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Brain className="h-4 w-4" />
+                        <span>{group.files.length} files • {group.similarity_type === "identical" ? "Same file size" : "Size + name similarity"}</span>
                       </div>
                     </div>
-                  </div>
+                  </CardHeader>
 
-                  {/* Recommendation */}
                   {recommendedFile && (
-                    <div className="recommendation">
-                      🔍 Recommendation: Keep largest file: {getFileName(recommendedFile.path)}
+                    <div className="mx-6 mb-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                      <div className="flex items-center gap-2 text-sm text-orange-800">
+                        <Search className="h-4 w-4" />
+                        <span><strong>Recommendation:</strong> Keep largest file: {getFileName(recommendedFile.path)}</span>
+                      </div>
                     </div>
                   )}
 
-                  <div className="file-list">
-                    {group.files.map((file, fileIndex) => (
-                      <div key={fileIndex} className="file-item">
-                        <div className="file-checkbox">
-                          <input
-                            type="checkbox"
-                            checked={selectedFiles.has(file.path)}
-                            onChange={() => toggleFileSelection(file.path)}
-                          />
-                        </div>
-
-                        <div className="file-icon">
-                          📄
-                        </div>
-
-                        <div className="file-details">
-                          <div className="file-name">{getFileName(file.path)}</div>
-                          <div className="file-type">{file.file_type || 'Unknown'}</div>
-                        </div>
-
-                        <div className="file-metadata">
-                          <div className="file-size">
-                            📊 {formatFileSize(file.size)}
+                  <CardContent className="p-0">
+                    <div className="divide-y">
+                      {group.files.map((file, fileIndex) => (
+                        <div key={fileIndex} className="flex items-center p-4 hover:bg-muted/50 transition-colors">
+                          <div className="flex items-center space-x-3 flex-1">
+                            <Input
+                              type="checkbox"
+                              checked={selectedFiles.has(file.path)}
+                              onChange={() => toggleFileSelection(file.path)}
+                              className="w-4 h-4 cursor-pointer"
+                            />
+                            <FileText className="h-5 w-5 text-muted-foreground" />
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-sm truncate">{getFileName(file.path)}</p>
+                              <p className="text-xs text-muted-foreground">{file.file_type || 'Unknown'}</p>
+                            </div>
                           </div>
-                          <div className="file-date">
-                            📅 {formatDate(file.last_modified)}
+                          <div className="flex flex-col items-end gap-1 text-xs text-muted-foreground">
+                            <div className="flex items-center gap-1">
+                              <HardDrive className="h-3 w-3" />
+                              <span>{formatFileSize(file.size)}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Calendar className="h-3 w-3" />
+                              <span>{formatDate(file.last_modified)}</span>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
               );
             })
           )}
         </div>
       )}
-    </main>
+      </div>
+    </div>
   );
 }
 
