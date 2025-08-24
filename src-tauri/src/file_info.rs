@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::fs;
 use std::path::Path;
+use std::io::{BufReader, Read};
 use anyhow::Result;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -66,14 +67,29 @@ impl FileInfo {
             return Ok(hash.clone());
         }
         
-        let data = fs::read(&self.path)?;
-        let mut hasher = Sha256::new();
-        hasher.update(&data);
-        let result = hasher.finalize();
-        let hash_string = hex::encode(result);
-        
+        let hash_string = self.calculate_chunked_hash()?;
         self.hash = Some(hash_string.clone());
         Ok(hash_string)
+    }
+    
+    fn calculate_chunked_hash(&self) -> Result<String> {
+        const CHUNK_SIZE: usize = 64 * 1024; // 64KB chunks
+        
+        let file = fs::File::open(&self.path)?;
+        let mut reader = BufReader::new(file);
+        let mut hasher = Sha256::new();
+        let mut buffer = vec![0u8; CHUNK_SIZE];
+        
+        loop {
+            let bytes_read = reader.read(&mut buffer)?;
+            if bytes_read == 0 {
+                break;
+            }
+            hasher.update(&buffer[..bytes_read]);
+        }
+        
+        let result = hasher.finalize();
+        Ok(hex::encode(result))
     }
 }
 
